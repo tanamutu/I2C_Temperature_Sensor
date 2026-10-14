@@ -1,0 +1,19 @@
+# CMake build directories and generated files
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+build.ninja
+compile_commands.json
+
+# Embedded firmware build artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.a
+*.d
