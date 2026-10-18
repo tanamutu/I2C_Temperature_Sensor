@@ -11,17 +11,16 @@
 #define I2C_TIMINGR (*(volatile unsigned int *)0x40005410)
 #define I2C1_CR     (*(volatile unsigned int *)0x40005400)
 
+
+
 int main(void)
 {
     /* Enable clock for GPIOA */
     RCC_IOPENR |= (1 << 0);
     
     //set to alt function
-    GPIOA_MODER &= ~(0x3 << (9 * 2)); //CLEAR
-    GPIOA_MODER |= (0x2 << (9 * 2)); //SET
-
-    GPIOA_MODER &= ~(0x3 << (10 * 2)); //CLEAR
-    GPIOA_MODER |= (0x2 << (10 * 2)); //SET
+    GPIOA_MODER &= ~(0xF << (9 * 2)); //CLEAR
+    GPIOA_MODER |= (0xA << (9 * 2)); //SET
 
     GPIOA_AFRH  &= ~(0xF << 4); //CLEAR
     GPIOA_AFRH  |= (0x6 << 4); //SET
