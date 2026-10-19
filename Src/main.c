@@ -14,6 +14,8 @@
 #define I2C1_ISR    (*(volatile unsigned int *)0x40005418)
 #define I2C1_ICR    (*(volatile unsigned int *)0x4000541C)
 #define I2C1_TXDR  (*(volatile unsigned int *)0x40005428)
+#define I2C1_RXDR  (*(volatile unsigned int *)0x40005424)
+
 
 void start (unsigned int rw, unsigned int address, unsigned int size){
     
@@ -44,13 +46,23 @@ void start (unsigned int rw, unsigned int address, unsigned int size){
 }
 
 void write (unsigned char data){
-    
+
     do{
-    //wait for TXIS bit to be set
-    }while((I2C1_ISR & (1U << 1)) == 0);
+    //wait for TXIS = 1
+    }while((I2C1_ISR & (0x1 << 1)) == 0);
 
     //write data to TXDR
-    I2C1_TXDR = I2C1_TXDR & ~0xFF | data ;
+    I2C1_TXDR = data ;
+}
+
+void read (unsigned char *data){
+
+    do{
+        //wait for RXNE = 1
+    }while((I2C1_ISR & (0x1 << 2)) == 0);
+
+    //read data from RXDR
+    *data = I2C1_RXDR & 0xFF;
 }
 
 
