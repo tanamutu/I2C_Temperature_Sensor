@@ -65,6 +65,23 @@ void read (unsigned char *data){
     *data = I2C1_RXDR & 0xFF;
 }
 
+void stop (void){
+
+    do{
+        //wait for TC=1:Transfer complete
+    }while ((I2C1_ISR & (0x1 << 6)) == 0x0);
+
+    //set STOP bit
+    I2C1_CR2 |= (0x1 << 14);
+
+    do{
+        //wait for STOPF = 1
+    }while((I2C1_ISR & (0x1 << 5)) == 0);
+
+    //clear STOPF bit
+    I2C1_ICR = (0x1 << 5);
+}
+
 
 int main(void)
 {
