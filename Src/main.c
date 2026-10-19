@@ -13,8 +13,8 @@
 #define I2C1_CR2    (*(volatile unsigned int *)0x40005404)
 #define I2C1_ISR    (*(volatile unsigned int *)0x40005418)
 #define I2C1_ICR    (*(volatile unsigned int *)0x4000541C)
-#define I2C1_TXDR  (*(volatile unsigned int *)0x40005428)
-#define I2C1_RXDR  (*(volatile unsigned int *)0x40005424)
+#define I2C1_TXDR   (*(volatile unsigned int *)0x40005428)
+#define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
 
 void start (unsigned int rw, unsigned int address, unsigned int size){
