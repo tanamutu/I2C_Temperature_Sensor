@@ -10,7 +10,38 @@
 
 #define I2C_TIMINGR (*(volatile unsigned int *)0x40005410)
 #define I2C1_CR     (*(volatile unsigned int *)0x40005400)
+#define I2C1_CR2    (*(volatile unsigned int *)0x40005404)
+#define I2C1_ISR    (*(volatile unsigned int *)0x40005418)
+#define I2C1_ICR    (*(volatile unsigned int *)0x4000541C)
 
+
+void start (unsigned int rw, unsigned int address, unsigned int size){
+    
+    //set SADD
+    I2C1_CR2 &= ~(0x3FF); //CLEAR
+    I2C1_CR2 |= ((address & 0x7F) << 1); //SET
+
+    //set RD_WRN bit
+    I2C1_CR2 &= ~(0x1 << 10); //CLEAR
+    I2C1_CR2 |= (rw << 10); //SET
+
+    //set byte count
+    I2C1_CR2 &= ~(0xFFU << 16); // CLEAR  
+    I2C1_CR2 |=  (size << 16); // SET
+
+    //set START BIT 
+    I2C1_CR2 |= (0x1 << 13);
+
+    do{
+        //wait for the START bit to be cleared
+    }while((I2C1_CR2 & (1U << 13)) != 0); 
+
+    if (I2C1_ISR & (1U << 4)) {
+        //clear NACKF bit
+        I2C1_ICR = (1U << 4);
+    }
+
+}
 
 
 int main(void)
