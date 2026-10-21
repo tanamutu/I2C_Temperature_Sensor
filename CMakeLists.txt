@@ -13,12 +13,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/target.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
 
 # Project definition
-project(SPI_Temperature_Sensor)
+project(I2C_Temperature_Sensor)
 
 # Enable CMake support for ASM and C/CPP languages
 enable_language(C ASM)
 
-set(PROJECT_NAME SPI_Temperature_Sensor)
+set(PROJECT_NAME I2C_Temperature_Sensor)
 
 # Create an executable object type
 add_executable(${PROJECT_NAME})

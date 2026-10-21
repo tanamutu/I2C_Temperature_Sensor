@@ -134,7 +134,7 @@ target_link_options(${PROJECT_NAME} PUBLIC
     # Linker flags specific to Debug build type
     $<$<CONFIG:Debug>: 
         -T${CMAKE_CURRENT_BINARY_DIR}/stm32g031x8_flash.ld
-        -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/SPI_Temperature_Sensor.map
+        -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map
         -u
         _printf_float
         --specs=nosys.specs
@@ -151,7 +151,7 @@ target_link_options(${PROJECT_NAME} PUBLIC
     # Linker flags specific to Release build type
     $<$<CONFIG:Release>: 
         -T${CMAKE_CURRENT_BINARY_DIR}/stm32g031x8_flash.ld
-        -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/SPI_Temperature_Sensor.map
+        -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map
         -u
         _printf_float
         --specs=nosys.specs
@@ -167,4 +167,4 @@ target_link_options(${PROJECT_NAME} PUBLIC
 
 )
 # Clean .map file
-set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}/${PROJECT_NAME}.map")
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map")

@@ -97,7 +97,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32g031x8_flash.ld",
-            "-Wl,-Map=SPI_Temperature_Sensor.map",
+            "-Wl,-Map=I2C_Temperature_Sensor.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
@@ -116,7 +116,7 @@
     {
       "name": "Release",
       "type": "Executable",
-      "output_filename": "SPI_Temperature_Sensor",
+      "output_filename": "I2C_Temperature_Sensor",
       "mcu": "STM32G031K8T6",
       "toolchain_type": "GCC",
       "toolchain_prefix": "",
@@ -200,7 +200,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32g031x8_flash.ld",
-            "-Wl,-Map=SPI_Temperature_Sensor.map",
+            "-Wl,-Map=I2C_Temperature_Sensor.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
