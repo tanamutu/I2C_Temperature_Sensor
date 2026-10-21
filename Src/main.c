@@ -55,7 +55,6 @@ static bool button_was_pressed(void){
 
 int display (int data){
     // Bits 7..0: F G A B DP C D E. Active-low segments.
-    // Bit 3 stays high; GPA3 is the button input, GPB3 is an unused DP.
     switch (data) {
         case 0: return 0b01001000;
         case 1: return 0b11101011;

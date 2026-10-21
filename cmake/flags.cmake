@@ -8,7 +8,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
     # Compiler flags specific to Debug build type
     $<$<CONFIG:Debug>:
       $<$<COMPILE_LANGUAGE:C>: 
-        -std=gnu11
+        -std=gnu23
         -fstack-usage
         -Wall
         -Wextra
@@ -50,7 +50,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
     # Compiler flags specific to Release build type
     $<$<CONFIG:Release>:
       $<$<COMPILE_LANGUAGE:C>: 
-        -std=gnu11
+        -std=gnu23
         -fstack-usage
         -Wall
         -Wextra
