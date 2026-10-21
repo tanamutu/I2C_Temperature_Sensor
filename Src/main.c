@@ -102,10 +102,8 @@ void start (unsigned int address, unsigned int rw,unsigned int size){
         //wait for the START bit to be cleared
     }while((I2C1_CR2 & (1U << 13)) != 0); 
 
-    if (I2C1_ISR & (1U << 4)) {
-        //clear NACKF bit
-        I2C1_ICR = (1U << 4);
-    }
+    // Keep NACKF visible for diagnosis. Clearing it here hides a failed
+    // address transfer and leaves write() waiting for TXIS indefinitely.
 
 }
 
