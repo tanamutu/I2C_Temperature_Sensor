@@ -1,6 +1,10 @@
+#include <stdbool.h>
+
 //REGISTER DEFINITION
 #define GPIOA_MODER     (*(volatile unsigned int *) 0x50000000)
 #define GPIOA_OTYPER    (*(volatile unsigned int *) 0x50000004)
+#define GPIOA_PUPDR     (*(volatile unsigned int *) 0x5000000C)
+#define GPIOA_IDR       (*(volatile unsigned int *) 0x50000010)
 #define GPIOA_AFRL      (*(volatile unsigned int *) 0x50000020)
 #define GPIOA_AFRH      (*(volatile unsigned int *) 0x50000024)
 
@@ -15,6 +19,37 @@
 #define I2C1_ICR    (*(volatile unsigned int *)0x4000541C)
 #define I2C1_TXDR   (*(volatile unsigned int *)0x40005428)
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
+
+#define BUTTON_PIN (1U << 0)
+
+static void button_init(void){
+    GPIOA_MODER &= ~3U;
+    GPIOA_PUPDR = (GPIOA_PUPDR & ~3U) | 1U;
+}
+
+static void debounce_delay(void){
+    // Approximate settling delay; duration depends on CPU speed and compiler.
+    for (volatile unsigned int i = 0; i < 100000U; ++i) {
+    }
+}
+
+static bool button_was_pressed(void){
+    // static remembers whether the button was down on the previous call.
+    static bool was_pressed = false;
+    bool pressed = (GPIOA_IDR & BUTTON_PIN) == 0;
+
+    if (pressed != was_pressed) {
+        debounce_delay();
+
+        // Read again to check that the change was not just contact bounce.
+        if (pressed == ((GPIOA_IDR & BUTTON_PIN) == 0)) {
+            was_pressed = pressed;
+            return pressed; // New press: true. Release: false.
+        }
+    }
+
+    return false;
+}
 
 int display (int data){
     // Bits 7..0: F G A B DP C D E. Common cathode.
@@ -32,6 +67,11 @@ int display (int data){
         default: return 0b11111111;
     }
 }
+
+static inline int toFareinheit(int celsius) {
+    return (celsius * 9 / 5) + 32;
+}
+
 
 static inline void wait_tc(void){
     // Wait for the complete NBYTES transfer.
@@ -107,16 +147,17 @@ unsigned char read_sensor(void){
     start(0b1001101, 0, 1);
     write(0x00);
     wait_tc();
+
     start(0b1001101, 1, 1);
     unsigned char data = read();
     stop();
+
     return data;
 }
 
 void write_display(unsigned char reg, unsigned char segments){
-
-    // Register address and output value belong to one two-byte transfer.
     start(0b0100000, 0, 2);
+
     write(reg);
     write(segments);
 
@@ -128,6 +169,10 @@ int main(void)
 {
     /* Enable clock for GPIOA */
     RCC_IOPENR |= (1 << 0);
+
+    button_init();
+
+    //I2C SETUP
     
     //set to alt function
     GPIOA_MODER &= ~(0xF << (9 * 2)); //CLEAR
@@ -159,26 +204,42 @@ int main(void)
     //set the PE bit in the CR1 register
     I2C1_CR |= (1U << 0);
 
+    //ocnfigure GPIOA and GPIOB as outputs for the 7-segment display
+    write_display(0x00, 0x00);
+    write_display(0x01, 0x00);
+
     unsigned char data;
+    bool use_fahrenheit = false;
 
 	while (1){
+
+        if (button_was_pressed()) {
+            use_fahrenheit = !use_fahrenheit;
+        }
 
         //get temperature
         data = read_sensor();
 
         // Decode signed 8-bit temperature.
         int temperature = (data & 0x80U) ? (int)data - 256 : (int)data;
+
+
         unsigned char tens_segments = 0xFF;
         unsigned char ones_segments = 0xFF;
 
-        //Split by tens and units
+        if (use_fahrenheit) {
+            temperature = toFareinheit(temperature);
+        }
+
+        // Split values that fit on the two digits; otherwise leave them blank.
         if (temperature >= 0 && temperature <= 99) {
             tens_segments = display(temperature / 10);
             ones_segments = display(temperature % 10);
         }
 
         // GPIOA: tens digit. GPIOB: ones digit.
+
         write_display(0x12, tens_segments);
         write_display(0x13, ones_segments);
-    }
+}
 }
