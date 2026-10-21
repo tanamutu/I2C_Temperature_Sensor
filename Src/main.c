@@ -1,4 +1,3 @@
-#include <stdbool.h>
 
 //REGISTER DEFINITION
 #define GPIOA_MODER     (*(volatile unsigned int *) 0x50000000)
@@ -19,6 +18,10 @@
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
 #define BUTTON_PIN (1U << 3) // GPB3 on the I2C expander.
+
+// Debugger watches: identify the expander write that fails.
+volatile unsigned int expander_debug_register = 0xFF;
+volatile unsigned int expander_debug_byte = 0;
 
 static unsigned char readExpander(unsigned char reg);
 static void writeExpander(unsigned char reg, unsigned char segments);
@@ -53,7 +56,7 @@ static bool button_was_pressed(void){
     return false;
 }
 
-int display (int data){
+int displayTens (int data){
     // Bits 7..0: F G A B DP C D E. Active-low segments.
     switch (data) {
         case 0: return 0b01001000;
@@ -66,6 +69,23 @@ int display (int data){
         case 7: return 0b11001011;
         case 8: return 0b00001000;
         case 9: return 0b00001001;
+        default: return 0b11111111;
+    }
+}
+
+int displayOnes (int data){
+    // Bits 7..0: F A B DP C G D E. Active-low segments.
+    switch (data) {
+        case 0: return 0b01000000;
+        case 1: return 0b11111001;
+        case 2: return 0b00100100;
+        case 3: return 0b01100000;
+        case 4: return 0b10011001;
+        case 5: return 0b01001000;
+        case 6: return 0b00001000;
+        case 7: return 0b11111000;
+        case 8: return 0b00000000;
+        case 9: return 0b01000000;  
         default: return 0b11111111;
     }
 }
@@ -102,8 +122,8 @@ void start (unsigned int address, unsigned int rw,unsigned int size){
         //wait for the START bit to be cleared
     }while((I2C1_CR2 & (1U << 13)) != 0); 
 
-    // Keep NACKF visible for diagnosis. Clearing it here hides a failed
-    // address transfer and leaves write() waiting for TXIS indefinitely.
+    if (I2C1_ISR & (1U << 4)) {
+    }
 
 }
 
@@ -158,12 +178,17 @@ unsigned char readSensor(void){
 }
 
 void writeExpander(unsigned char reg, unsigned char segments){
+    expander_debug_register = reg;
+    expander_debug_byte = 1; // About to send the register address.
     start(0b0100000, 0, 2);
 
     write(reg);
+    expander_debug_byte = 2; // About to send the register value.
     write(segments);
 
+    expander_debug_byte = 3; // Both bytes supplied; waiting for completion.
     stop();
+    expander_debug_byte = 0; // Write completed.
 }
 
 static unsigned char readExpander(unsigned char reg){
@@ -241,8 +266,8 @@ int main(void)
 
         // Split values that fit on the two digits; otherwise leave them blank.
         if (temperature >= 0 && temperature <= 99) {
-            tens_segments = display(temperature / 10);
-            ones_segments = display(temperature % 10);
+            tens_segments = displayTens(temperature % 10);
+            ones_segments = displayOnes(temperature / 10);
         }
 
         // GPIOA: tens digit. GPIOB: ones digit.
