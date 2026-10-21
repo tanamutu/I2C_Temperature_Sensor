@@ -18,18 +18,18 @@
 #define I2C1_TXDR   (*(volatile unsigned int *)0x40005428)
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
-#define BUTTON_PIN (1U << 3) // GPA3 on the I2C expander.
+#define BUTTON_PIN (1U << 3) // GPB3 on the I2C expander.
 
-static unsigned char read_expander(unsigned char reg);
-static void write_expander(unsigned char reg, unsigned char segments);
+static unsigned char readExpander(unsigned char reg);
+static void writeExpander(unsigned char reg, unsigned char segments);
 
 static void button_init(void){
-    // BANK=0 register map. GPA3 is input; remaining GPA pins are outputs.
-    write_expander(0x00, BUTTON_PIN); // IODIRA = 0x08.
-    write_expander(0x0C, BUTTON_PIN); // GPPUA: enable GPA3 pull-up.
+    // BANK=0 register map. GPB3 is input; all other pins are outputs.
+    writeExpander(0x01, BUTTON_PIN); // IODIRB = 0x08.
+    writeExpander(0x0D, BUTTON_PIN); // GPPUB: enable GPB3 pull-up.
 }
 
-static void debounce_delay(void){
+static void debounceDelay(void){
     // Approximate settling delay; duration depends on CPU speed and compiler.
     for (volatile unsigned int i = 0; i < 100000U; ++i) {
     }
@@ -38,13 +38,13 @@ static void debounce_delay(void){
 static bool button_was_pressed(void){
     // static remembers whether the button was down on the previous call.
     static bool was_pressed = false;
-    bool pressed = (read_expander(0x12) & BUTTON_PIN) == 0;
+    bool pressed = (readExpander(0x13) & BUTTON_PIN) == 0;
 
     if (pressed != was_pressed) {
-        debounce_delay();
+        debounceDelay();
 
         // Read again to check that the change was not just contact bounce.
-        if (pressed == ((read_expander(0x12) & BUTTON_PIN) == 0)) {
+        if (pressed == ((readExpander(0x13) & BUTTON_PIN) == 0)) {
             was_pressed = pressed;
             return pressed; // New press: true. Release: false.
         }
@@ -75,7 +75,7 @@ static inline int toFareinheit(int celsius) {
 }
 
 
-static inline void wait_tc(void){
+static inline void waitTC(void){
     // Wait for the complete NBYTES transfer.
     while ((I2C1_ISR & (1U << 6)) == 0) {
     }
@@ -132,7 +132,7 @@ unsigned char read (){
 }
 
 void stop (void){
-    wait_tc();
+    waitTC();
 
     //set STOP bit
     I2C1_CR2 |= (0x1 << 14);
@@ -145,19 +145,21 @@ void stop (void){
     I2C1_ICR = (0x1 << 5);
 }
 
-unsigned char read_sensor(void){
+unsigned char readSensor(void){
     start(0b1001101, 0, 1);
     write(0x00);
-    wait_tc();
+    waitTC();
 
     start(0b1001101, 1, 1);
     unsigned char data = read();
     stop();
 
+    printf("Temperature: %d\n", data);
+
     return data;
 }
 
-void write_expander(unsigned char reg, unsigned char segments){
+void writeExpander(unsigned char reg, unsigned char segments){
     start(0b0100000, 0, 2);
 
     write(reg);
@@ -166,10 +168,10 @@ void write_expander(unsigned char reg, unsigned char segments){
     stop();
 }
 
-static unsigned char read_expander(unsigned char reg){
+static unsigned char readExpander(unsigned char reg){
     start(0b0100000, 0, 1);
     write(reg);
-    wait_tc();
+    waitTC();
 
     start(0b0100000, 1, 1);
     unsigned char data = read();
@@ -215,19 +217,18 @@ int main(void)
     I2C1_CR |= (1U << 0);
 
     button_init();
-    write_expander(0x01, 0x00); // IODIRB: all GPB pins are outputs.
 
     unsigned char data;
-    bool use_fahrenheit = false;
+    bool useFahrenheit = false;
 
 	while (1){
 
         if (button_was_pressed()) {
-            use_fahrenheit = !use_fahrenheit;
+            useFahrenheit = !useFahrenheit;
         }
 
         //get temperature
-        data = read_sensor();
+        data = readSensor();
 
         // Decode signed 8-bit temperature.
         int temperature = (data & 0x80U) ? (int)data - 256 : (int)data;
@@ -236,7 +237,7 @@ int main(void)
         unsigned char tens_segments = 0xFF;
         unsigned char ones_segments = 0xFF;
 
-        if (use_fahrenheit) {
+        if (useFahrenheit) {
             temperature = toFareinheit(temperature);
         }
 
@@ -248,7 +249,7 @@ int main(void)
 
         // GPIOA: tens digit. GPIOB: ones digit.
 
-        write_expander(0x12, tens_segments);
-        write_expander(0x13, ones_segments);
+        writeExpander(0x12, tens_segments);
+        writeExpander(0x13, ones_segments);
 }
 }
