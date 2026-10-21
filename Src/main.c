@@ -3,8 +3,6 @@
 //REGISTER DEFINITION
 #define GPIOA_MODER     (*(volatile unsigned int *) 0x50000000)
 #define GPIOA_OTYPER    (*(volatile unsigned int *) 0x50000004)
-#define GPIOA_PUPDR     (*(volatile unsigned int *) 0x5000000C)
-#define GPIOA_IDR       (*(volatile unsigned int *) 0x50000010)
 #define GPIOA_AFRL      (*(volatile unsigned int *) 0x50000020)
 #define GPIOA_AFRH      (*(volatile unsigned int *) 0x50000024)
 
@@ -20,11 +18,15 @@
 #define I2C1_TXDR   (*(volatile unsigned int *)0x40005428)
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
-#define BUTTON_PIN (1U << 0)
+#define BUTTON_PIN (1U << 3) // GPA3 on the I2C expander.
+
+static unsigned char read_expander(unsigned char reg);
+static void write_expander(unsigned char reg, unsigned char segments);
 
 static void button_init(void){
-    GPIOA_MODER &= ~3U;
-    GPIOA_PUPDR = (GPIOA_PUPDR & ~3U) | 1U;
+    // BANK=0 register map. GPA3 is input; remaining GPA pins are outputs.
+    write_expander(0x00, BUTTON_PIN); // IODIRA = 0x08.
+    write_expander(0x0C, BUTTON_PIN); // GPPUA: enable GPA3 pull-up.
 }
 
 static void debounce_delay(void){
@@ -36,13 +38,13 @@ static void debounce_delay(void){
 static bool button_was_pressed(void){
     // static remembers whether the button was down on the previous call.
     static bool was_pressed = false;
-    bool pressed = (GPIOA_IDR & BUTTON_PIN) == 0;
+    bool pressed = (read_expander(0x12) & BUTTON_PIN) == 0;
 
     if (pressed != was_pressed) {
         debounce_delay();
 
         // Read again to check that the change was not just contact bounce.
-        if (pressed == ((GPIOA_IDR & BUTTON_PIN) == 0)) {
+        if (pressed == ((read_expander(0x12) & BUTTON_PIN) == 0)) {
             was_pressed = pressed;
             return pressed; // New press: true. Release: false.
         }
@@ -52,7 +54,8 @@ static bool button_was_pressed(void){
 }
 
 int display (int data){
-    // Bits 7..0: F G A B DP C D E. Common cathode.
+    // Bits 7..0: F G A B DP C D E. Active-low segments.
+    // Bit 3 stays high; GPA3 is the button input, GPB3 is an unused DP.
     switch (data) {
         case 0: return 0b01001000;
         case 1: return 0b11101011;
@@ -155,7 +158,7 @@ unsigned char read_sensor(void){
     return data;
 }
 
-void write_display(unsigned char reg, unsigned char segments){
+void write_expander(unsigned char reg, unsigned char segments){
     start(0b0100000, 0, 2);
 
     write(reg);
@@ -164,13 +167,21 @@ void write_display(unsigned char reg, unsigned char segments){
     stop();
 }
 
+static unsigned char read_expander(unsigned char reg){
+    start(0b0100000, 0, 1);
+    write(reg);
+    wait_tc();
+
+    start(0b0100000, 1, 1);
+    unsigned char data = read();
+    stop();
+    return data;
+}
 
 int main(void)
 {
     /* Enable clock for GPIOA */
     RCC_IOPENR |= (1 << 0);
-
-    button_init();
 
     //I2C SETUP
     
@@ -204,9 +215,8 @@ int main(void)
     //set the PE bit in the CR1 register
     I2C1_CR |= (1U << 0);
 
-    //ocnfigure GPIOA and GPIOB as outputs for the 7-segment display
-    write_display(0x00, 0x00);
-    write_display(0x01, 0x00);
+    button_init();
+    write_expander(0x01, 0x00); // IODIRB: all GPB pins are outputs.
 
     unsigned char data;
     bool use_fahrenheit = false;
@@ -239,7 +249,7 @@ int main(void)
 
         // GPIOA: tens digit. GPIOB: ones digit.
 
-        write_display(0x12, tens_segments);
-        write_display(0x13, ones_segments);
+        write_expander(0x12, tens_segments);
+        write_expander(0x13, ones_segments);
 }
 }
