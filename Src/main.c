@@ -24,9 +24,9 @@ static unsigned char readExpander(unsigned char reg);
 static void writeExpander(unsigned char reg, unsigned char segments);
 
 static void button_init(void){
-    // BANK=0 register map. GPB3 is input; all other pins are outputs.
-    writeExpander(0x01, BUTTON_PIN); // IODIRB = 0x08.
-    writeExpander(0x0D, BUTTON_PIN); // GPPUB: enable GPB3 pull-up.
+    writeExpander(0x00, 0x00);       // IODIRA: all outputs
+    writeExpander(0x01, BUTTON_PIN); // IODIRB: GPB3 input
+    writeExpander(0x0D, BUTTON_PIN); // GPPUB: GPB3 pull-up
 }
 
 static void debounceDelay(void){
