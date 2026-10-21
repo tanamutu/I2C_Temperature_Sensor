@@ -17,9 +17,7 @@
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
 int display (int data){
-    
-    // Bits 7..0: F G A B DP C D E. A low bit lights the segment.
-    // Decimal point (GPB3) stays off.
+    // Bits 7..0: F G A B DP C D E. Common cathode.
     switch (data) {
         case 0: return 0b01001000;
         case 1: return 0b11101011;
@@ -35,7 +33,11 @@ int display (int data){
     }
 }
 
-
+static inline void wait_tc(void){
+    // Wait for the complete NBYTES transfer.
+    while ((I2C1_ISR & (1U << 6)) == 0) {
+    }
+}
 
 void start (unsigned int address, unsigned int rw,unsigned int size){
     
@@ -73,10 +75,6 @@ void write (unsigned char data){
 
     //write data to TXDR
     I2C1_TXDR = data ;
-
-    do{
-
-    }while ((I2C1_ISR & (0x1 << 6)) == 0);
 }
 
 unsigned char read (){
@@ -92,10 +90,7 @@ unsigned char read (){
 }
 
 void stop (void){
-
-    do{
-        //wait for TC=1:Transfer complete
-    }while ((I2C1_ISR & (0x1 << 6)) == 0x0);
+    wait_tc();
 
     //set STOP bit
     I2C1_CR2 |= (0x1 << 14);
@@ -106,6 +101,26 @@ void stop (void){
 
     //clear STOPF bit
     I2C1_ICR = (0x1 << 5);
+}
+
+unsigned char read_sensor(void){
+    start(0b1001101, 0, 1);
+    write(0x00);
+    wait_tc();
+    start(0b1001101, 1, 1);
+    unsigned char data = read();
+    stop();
+    return data;
+}
+
+void write_display(unsigned char reg, unsigned char segments){
+
+    // Register address and output value belong to one two-byte transfer.
+    start(0b0100000, 0, 2);
+    write(reg);
+    write(segments);
+
+    stop();
 }
 
 
@@ -144,29 +159,26 @@ int main(void)
     //set the PE bit in the CR1 register
     I2C1_CR |= (1U << 0);
 
-    unsigned char data;;
+    unsigned char data;
 
 	while (1){
 
-        //read from sensor
-        start (0b1001101,0,1);
-        write (0x00); 
-        start (0b1001101,1,1);
-        data = read();
-        stop();
+        //get temperature
+        data = read_sensor();
 
-        // write to GPIOA
-        start (0b0100000,0,1);
-        write (0x12);
-        write (display(data));
-        stop();
+        // Decode signed 8-bit temperature.
+        int temperature = (data & 0x80U) ? (int)data - 256 : (int)data;
+        unsigned char tens_segments = 0xFF;
+        unsigned char ones_segments = 0xFF;
 
-        //WRITE TO GPIOB
-        start (0b0100000,0,1);
-        write (0x13);
-        write (display(data));
-        stop();
+        //Split by tens and units
+        if (temperature >= 0 && temperature <= 99) {
+            tens_segments = display(temperature / 10);
+            ones_segments = display(temperature % 10);
+        }
+
+        // GPIOA: tens digit. GPIOB: ones digit.
+        write_display(0x12, tens_segments);
+        write_display(0x13, ones_segments);
     }
-
-
 }
