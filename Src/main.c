@@ -16,8 +16,28 @@
 #define I2C1_TXDR   (*(volatile unsigned int *)0x40005428)
 #define I2C1_RXDR   (*(volatile unsigned int *)0x40005424)
 
+int display (int data){
+    
+    // Bits 7..0: F G A B DP C D E. A low bit lights the segment.
+    // Decimal point (GPB3) stays off.
+    switch (data) {
+        case 0: return 0b01001000;
+        case 1: return 0b11101011;
+        case 2: return 0b10001100;
+        case 3: return 0b10001001;
+        case 4: return 0b00101011;
+        case 5: return 0b00011001;
+        case 6: return 0b00011000;
+        case 7: return 0b11001011;
+        case 8: return 0b00001000;
+        case 9: return 0b00001001;
+        default: return 0b11111111;
+    }
+}
 
-void start (unsigned int rw, unsigned int address, unsigned int size){
+
+
+void start (unsigned int address, unsigned int rw,unsigned int size){
     
     //set SADD
     I2C1_CR2 &= ~(0x3FF); //CLEAR
@@ -53,16 +73,22 @@ void write (unsigned char data){
 
     //write data to TXDR
     I2C1_TXDR = data ;
+
+    do{
+
+    }while ((I2C1_ISR & (0x1 << 6)) == 0);
 }
 
-void read (unsigned char *data){
+unsigned char read (){
 
     do{
         //wait for RXNE = 1
     }while((I2C1_ISR & (0x1 << 2)) == 0);
 
     //read data from RXDR
-    *data = I2C1_RXDR & 0xFF;
+    unsigned char data = I2C1_RXDR & 0xFF;
+
+    return data;
 }
 
 void stop (void){
@@ -118,6 +144,29 @@ int main(void)
     //set the PE bit in the CR1 register
     I2C1_CR |= (1U << 0);
 
-    /* Loop forever */
-	for(;;);
+    unsigned char data;;
+
+	while (1){
+
+        //read from sensor
+        start (0b1001101,0,1);
+        write (0x00); 
+        start (0b1001101,1,1);
+        data = read();
+        stop();
+
+        // write to GPIOA
+        start (0b0100000,0,1);
+        write (0x12);
+        write (display(data));
+        stop();
+
+        //WRITE TO GPIOB
+        start (0b0100000,0,1);
+        write (0x13);
+        write (display(data));
+        stop();
+    }
+
+
 }
